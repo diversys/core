@@ -768,8 +768,7 @@ void SwTextFrame::HideHidden()
     OSL_ENSURE( !GetFollow() && IsHiddenNow(),
             "HideHidden on visible frame of hidden frame has follow" );
 
-    const sal_Int32 nEnd = COMPLETE_STRING;
-    HideFootnotes( GetOfst(), nEnd );
+    HideFootnotes(GetOfst(), TextFrameIndex(COMPLETE_STRING));
     HideAndShowObjects();
 
     // format information is obsolete
@@ -957,8 +956,8 @@ TextFrameIndex SwTextFrame::FindBrk(const OUString &rText,
                               const TextFrameIndex nStart,
                               const TextFrameIndex nEnd)
 {
-    sal_Int32 nFound = nStart;
-    const sal_Int32 nEndLine = std::min( nEnd, rText.getLength() - 1 );
+    sal_Int32 nFound = sal_Int32(nStart);
+    const sal_Int32 nEndLine = std::min(sal_Int32(nEnd), rText.getLength() - 1);
 
     // Skip all leading blanks.
     while( nFound <= nEndLine && ' ' == rText[nFound] )
@@ -975,7 +974,7 @@ TextFrameIndex SwTextFrame::FindBrk(const OUString &rText,
         nFound++;
     }
 
-    return nFound;
+    return TextFrameIndex(nFound);
 }
 
 bool SwTextFrame::IsIdxInside(TextFrameIndex const nPos, TextFrameIndex const nLen) const
@@ -985,7 +984,7 @@ bool SwTextFrame::IsIdxInside(TextFrameIndex const nPos, TextFrameIndex const nL
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wstrict-overflow"
 #endif
-    if( nLen != COMPLETE_STRING && GetOfst() > nPos + nLen ) // the range preceded us
+    if (nLen != TextFrameIndex(COMPLETE_STRING) && GetOfst() > nPos + nLen) // the range preceded us
 #if defined __GNUC__ && !defined __clang__
 #pragma GCC diagnostic pop
 #endif
@@ -994,7 +993,7 @@ bool SwTextFrame::IsIdxInside(TextFrameIndex const nPos, TextFrameIndex const nL
     if( !GetFollow() ) // the range doesn't precede us,
         return true; // nobody follows us.
 
-    const sal_Int32 nMax = GetFollow()->GetOfst();
+    TextFrameIndex const nMax = GetFollow()->GetOfst();
 
     // either the range overlap or our text has been deleted
     if( nMax > nPos || nMax > GetText().getLength() )
@@ -1033,7 +1032,7 @@ void SwTextFrame::InvalidateRange_( const SwCharRange &aRange, const long nD)
     }
     SwCharRange &rReformat = pPara->GetReformat();
     if(aRange != rReformat) {
-        if( COMPLETE_STRING == rReformat.Len() )
+        if (TextFrameIndex(COMPLETE_STRING) == rReformat.Len())
             rReformat = aRange;
         else
             rReformat += aRange;
@@ -1277,7 +1276,7 @@ void SwTextFrame::Modify( const SfxPoolItem* pOld, const SfxPoolItem *pNew )
         case RES_DEL_CHR:
         {
             nPos = static_cast<const SwDelChr*>(pNew)->nPos;
-            InvalidateRange( SwCharRange( nPos, 1 ), -1 );
+            InvalidateRange( SwCharRange(nPos, TextFrameIndex(1)), -1 );
             lcl_SetWrong( *this, nPos, -1, true );
             lcl_SetScriptInval( *this, nPos );
             bSetFieldsDirty = bRecalcFootnoteFlag = true;
@@ -1295,7 +1294,7 @@ void SwTextFrame::Modify( const SfxPoolItem* pOld, const SfxPoolItem *pNew )
                 if( !nLen )
                     InvalidateSize();
                 else
-                    InvalidateRange( SwCharRange( nPos, 1 ), m );
+                    InvalidateRange( SwCharRange(nPos, TextFrameIndex(1)), m );
             }
             lcl_SetWrong( *this, nPos, m, true );
             lcl_SetScriptInval( *this, nPos );
@@ -1360,7 +1359,7 @@ void SwTextFrame::Modify( const SfxPoolItem* pOld, const SfxPoolItem *pNew )
         case RES_TXTATR_ANNOTATION:
             {
                 nPos = static_cast<const SwFormatField*>(pNew)->GetTextField()->GetStart();
-                if( IsIdxInside( nPos, 1 ) )
+                if (IsIdxInside(nPos, TextFrameIndex(1)))
                 {
                     if( pNew == pOld )
                     {
@@ -1370,7 +1369,7 @@ void SwTextFrame::Modify( const SfxPoolItem* pOld, const SfxPoolItem *pNew )
                         SetCompletePaint();
                     }
                     else
-                        InvalidateRange_( SwCharRange( nPos, 1 ) );
+                        InvalidateRange_(SwCharRange(nPos, TextFrameIndex(1)));
                 }
                 bSetFieldsDirty = true;
                 // ST2
@@ -1382,7 +1381,7 @@ void SwTextFrame::Modify( const SfxPoolItem* pOld, const SfxPoolItem *pNew )
         case RES_TXTATR_FTN :
         {
             nPos = static_cast<const SwFormatFootnote*>(pNew)->GetTextFootnote()->GetStart();
-            if( IsInFootnote() || IsIdxInside( nPos, 1 ) )
+            if (IsInFootnote() || IsIdxInside(nPos, TextFrameIndex(1)))
                 Prepare( PREP_FTN, static_cast<const SwFormatFootnote*>(pNew)->GetTextFootnote() );
             break;
         }
@@ -1399,7 +1398,7 @@ void SwTextFrame::Modify( const SfxPoolItem* pOld, const SfxPoolItem *pNew )
             if( SfxItemState::SET == rNewSet.GetItemState( RES_TXTATR_FTN, false, &pItem ))
             {
                 nPos = static_cast<const SwFormatFootnote*>(pItem)->GetTextFootnote()->GetStart();
-                if( IsIdxInside( nPos, 1 ) )
+                if (IsIdxInside(nPos, TextFrameIndex(1)))
                     Prepare( PREP_FTN, pNew );
                 nClear = 0x01;
                 --nCount;
@@ -1408,7 +1407,7 @@ void SwTextFrame::Modify( const SfxPoolItem* pOld, const SfxPoolItem *pNew )
             if( SfxItemState::SET == rNewSet.GetItemState( RES_TXTATR_FIELD, false, &pItem ))
             {
                 nPos = static_cast<const SwFormatField*>(pItem)->GetTextField()->GetStart();
-                if( IsIdxInside( nPos, 1 ) )
+                if (IsIdxInside(nPos, TextFrameIndex(1)))
                 {
                     const SfxPoolItem* pOldItem = pOld ?
                         &(static_cast<const SwAttrSetChg*>(pOld)->GetChgSet()->Get(RES_TXTATR_FIELD)) : nullptr;
@@ -1418,7 +1417,7 @@ void SwTextFrame::Modify( const SfxPoolItem* pOld, const SfxPoolItem *pNew )
                         SetCompletePaint();
                     }
                     else
-                        InvalidateRange_( SwCharRange( nPos, 1 ) );
+                        InvalidateRange_(SwCharRange(nPos, TextFrameIndex(1)));
                 }
                 nClear |= 0x02;
                 --nCount;
@@ -1596,7 +1595,7 @@ void SwTextFrame::Modify( const SfxPoolItem* pOld, const SfxPoolItem *pNew )
                 {
                     const SwFormatField *pField = static_cast<const SwFormatField *>(pNew);
                     InvalidateRange(
-                        SwCharRange( pField->GetTextField()->GetStart(), 1 ) );
+                        SwCharRange(pField->GetTextField()->GetStart(), TextFrameIndex(1)));
                 }
             }
             break;
@@ -1675,7 +1674,7 @@ void SwTextFrame::PrepWidows( const sal_uInt16 nNeed, bool bNotify )
     SwTextSizeInfo aInf( this );
     SwTextMargin aLine( this, &aInf );
     aLine.Bottom();
-    sal_Int32 nTmpLen = aLine.GetCurr()->GetLen();
+    TextFrameIndex nTmpLen = aLine.GetCurr()->GetLen();
     while( nHave && aLine.PrevLine() )
     {
         if( nTmpLen )
@@ -1829,9 +1828,9 @@ bool SwTextFrame::Prepare( const PrepareHint ePrep, const void* pVoid,
             if( IsFootnoteNumFrame() != pPara->IsFootnoteNum() ||
                 IsUndersized() )
             {
-                InvalidateRange( SwCharRange( 0, 1 ), 1);
+                InvalidateRange(SwCharRange(TextFrameIndex(0), TextFrameIndex(1)), 1);
                 if( GetOfst() && !IsFollow() )
-                    SetOfst_( 0 );
+                    SetOfst_(TextFrameIndex(0));
             }
             break;
         case PREP_MUST_FIT :
@@ -1857,7 +1856,7 @@ bool SwTextFrame::Prepare( const PrepareHint ePrep, const void* pVoid,
                 if( !GetPrev() )
                     // So we're a TextFrame of the footnote, which has
                     // to display the footnote number or the ErgoSum text
-                    InvalidateRange( SwCharRange( 0, 1 ), 1);
+                    InvalidateRange(SwCharRange(TextFrameIndex(0), TextFrameIndex(1)), 1);
 
                 if( !GetNext() )
                 {
@@ -1869,7 +1868,7 @@ bool SwTextFrame::Prepare( const PrepareHint ePrep, const void* pVoid,
                         sal_Int32 nPos = pPara->GetParLen();
                         if( nPos )
                             --nPos;
-                        InvalidateRange( SwCharRange( nPos, 1 ), 1);
+                        InvalidateRange( SwCharRange(nPos, TextFrameIndex(1)), 1);
                     }
                 }
             }
@@ -1877,7 +1876,7 @@ bool SwTextFrame::Prepare( const PrepareHint ePrep, const void* pVoid,
             {
                 // We are the TextFrame _with_ the footnote
                 const sal_Int32 nPos = pFootnote->GetStart();
-                InvalidateRange( SwCharRange( nPos, 1 ), 1);
+                InvalidateRange(SwCharRange(nPos, TextFrameIndex(1)), 1);
             }
             break;
         }
@@ -1889,7 +1888,7 @@ bool SwTextFrame::Prepare( const PrepareHint ePrep, const void* pVoid,
                 bool bOld = IsVertical();
                 SetInvalidVert( true );
                 if( bOld != IsVertical() )
-                    InvalidateRange( SwCharRange( GetOfst(), COMPLETE_STRING ) );
+                    InvalidateRange(SwCharRange(GetOfst(), TextFrameIndex(COMPLETE_STRING)));
             }
 
             if( HasFollow() )
@@ -1897,15 +1896,15 @@ bool SwTextFrame::Prepare( const PrepareHint ePrep, const void* pVoid,
                 sal_Int32 nNxtOfst = GetFollow()->GetOfst();
                 if( nNxtOfst )
                     --nNxtOfst;
-                InvalidateRange( SwCharRange( nNxtOfst, 1 ), 1);
+                InvalidateRange(SwCharRange( nNxtOfst, TextFrameIndex(1)), 1);
             }
             if( IsInFootnote() )
             {
                 sal_Int32 nPos;
                 if( lcl_ErgoVadis( this, nPos, PREP_QUOVADIS ) )
-                    InvalidateRange( SwCharRange( nPos, 1 ) );
+                    InvalidateRange( SwCharRange( nPos, TextFrameIndex(1)) );
                 if( lcl_ErgoVadis( this, nPos, PREP_ERGOSUM ) )
-                    InvalidateRange( SwCharRange( nPos, 1 ) );
+                    InvalidateRange( SwCharRange( nPos, TextFrameIndex(1)) );
             }
             // If we have a page number field, we must invalidate those spots
             SwpHints *pHints = GetTextNode()->GetpSwpHints();
@@ -1930,7 +1929,7 @@ bool SwTextFrame::Prepare( const PrepareHint ePrep, const void* pVoid,
                         const sal_uInt16 nWhich = pHt->Which();
                         if( RES_TXTATR_FIELD == nWhich ||
                             (HasFootnote() && pVoid && RES_TXTATR_FTN == nWhich))
-                        InvalidateRange( SwCharRange( nStart, 1 ), 1 );
+                        InvalidateRange(SwCharRange(nStart, TextFrameIndex(1)), 1);
                     }
                 }
             }
@@ -1938,7 +1937,7 @@ bool SwTextFrame::Prepare( const PrepareHint ePrep, const void* pVoid,
             if( IsUndersized() )
             {
                 InvalidateSize_();
-                InvalidateRange( SwCharRange( GetOfst(), 1 ), 1);
+                InvalidateRange(SwCharRange(GetOfst(), TextFrameIndex(1)), 1);
             }
             break;
         }
@@ -2063,7 +2062,7 @@ bool SwTextFrame::Prepare( const PrepareHint ePrep, const void* pVoid,
                     FindMaster()->Prepare( PREP_FTN_GONE ); // Master's Prepare
                 if( nPos )
                     --nPos; // The char preceding our Follow
-                InvalidateRange( SwCharRange( nPos, 1 ) );
+                InvalidateRange(SwCharRange(nPos, TextFrameIndex(1)));
                 return bParaPossiblyInvalid;
             }
         case PREP_ERGOSUM:
@@ -2071,7 +2070,7 @@ bool SwTextFrame::Prepare( const PrepareHint ePrep, const void* pVoid,
             {
                 sal_Int32 nPos;
                 if( lcl_ErgoVadis( this, nPos, ePrep ) )
-                    InvalidateRange( SwCharRange( nPos, 1 ) );
+                    InvalidateRange(SwCharRange(nPos, TextFrameIndex(1)));
             }
             break;
         case PREP_FLY_ATTR_CHG:
@@ -2080,7 +2079,7 @@ bool SwTextFrame::Prepare( const PrepareHint ePrep, const void* pVoid,
             {
                 sal_Int32 nWhere = CalcFlyPos( static_cast<SwFrameFormat const *>(pVoid) );
                 OSL_ENSURE( COMPLETE_STRING != nWhere, "Prepare: Why me?" );
-                InvalidateRange( SwCharRange( nWhere, 1 ) );
+                InvalidateRange(SwCharRange(nWhere, TextFrameIndex(1)));
                 return bParaPossiblyInvalid;
             }
             SAL_FALLTHROUGH; // else: continue with default case block

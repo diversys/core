@@ -704,6 +704,8 @@ public:
 
     static void repaintTextFrames( const SwTextNode& rNode );
 
+    void RegisterToNode( SwTextNode& );
+
     virtual void dumpAsXmlAttributes(xmlTextWriterPtr writer) const override;
 };
 

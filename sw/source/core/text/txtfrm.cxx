@@ -1507,17 +1507,18 @@ void SwTextFrame::SwClientNotify(SwModify const& rModify, SfxHint const& rHint)
         {
             sal_Int32 const nNPos = static_cast<const SwDelChr*>(pNew)->nPos;
             nPos = MapModelToView(&rNode, nNPos);
-            nLen = MapModelToView(&rNode, nNPos + 1) - nPos;
-            bool bDeleted(true);
             if (m_pMergedPara)
             {
-                bDeleted = UpdateMergedParaForDelete(*m_pMergedPara, rNode, nNPos, 1);
+                nLen = UpdateMergedParaForDelete(*m_pMergedPara, rNode, nNPos, 1);
+            }
+            else
+            {
+                nLen = TextFrameIndex(1);
             }
             lcl_SetWrong( *this, rNode, nNPos, -1, true );
-            if (bDeleted)
+            if (nLen)
             {
-                assert(nLen);
-                InvalidateRange( SwCharRange(nPos, TextFrameIndex(1)), -1 );
+                InvalidateRange( SwCharRange(nPos, nLen), -1 );
                 lcl_SetScriptInval( *this, nPos );
                 bSetFieldsDirty = bRecalcFootnoteFlag = true;
                 if (HasFollow())
@@ -1530,14 +1531,16 @@ void SwTextFrame::SwClientNotify(SwModify const& rModify, SfxHint const& rHint)
             sal_Int32 const nNPos = static_cast<const SwDelText*>(pNew)->nStart;
             sal_Int32 const nNLen = static_cast<const SwDelText*>(pNew)->nLen;
             nPos = MapModelToView(&rNode, nNPos);
-            nLen = MapModelToView(&rNode, nNPos + nNLen) - nPos;
-            bool bDeleted(true);
             if (m_pMergedPara)
             {   // update merged before doing anything else
-                bDeleted = UpdateMergedParaForDelete(*m_pMergedPara, rNode, nNPos, nNLen);
+                nLen = UpdateMergedParaForDelete(*m_pMergedPara, rNode, nNPos, nNLen);
+            }
+            else
+            {
+                nLen = TextFrameIndex(nNLen);
             }
             const sal_Int32 m = -nNLen;
-            if (bDeleted && IsIdxInside(nPos, nLen))
+            if ((!m_pMergedPara || nLen) && IsIdxInside(nPos, nLen))
             {
                 if( !nLen )
                     InvalidateSize();
@@ -1545,9 +1548,8 @@ void SwTextFrame::SwClientNotify(SwModify const& rModify, SfxHint const& rHint)
                     InvalidateRange( SwCharRange(nPos, TextFrameIndex(1)), m );
             }
             lcl_SetWrong( *this, rNode, nNPos, m, true );
-            if (bDeleted)
+            if (nLen)
             {
-                assert(!nNLen || nLen);
                 lcl_SetScriptInval( *this, nPos );
                 bSetFieldsDirty = bRecalcFootnoteFlag = true;
                 if (HasFollow())

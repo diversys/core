@@ -650,41 +650,46 @@ void UpdateMergedParaForInsert(MergedPara & rMerged,
     sal_Int32 nTFIndex(0);
     bool bInserted(false);
     bool bFoundNode(false);
-    auto it = rMerged.extents.begin();
-    for (; it != rMerged.extents.end(); ++it)
+    auto itInsert(rMerged.extents.end());
+    for (auto it = rMerged.extents.begin(); it != rMerged.extents.end(); ++it)
     {
         if (it->pNode == &rNode)
         {
+            bFoundNode = true;
             if (it->nStart <= nIndex && nIndex <= it->nEnd)
             {   // note: this can happen only once
-                it->nEnd += nLen;
                 text.insert(nTFIndex + (nIndex - it->nStart),
                         rNode.GetText().copy(nIndex, nLen));
+                it->nEnd += nLen;
                 bInserted = true;
             }
             else if (nIndex < it->nStart)
             {
+                if (itInsert == rMerged.extents.end())
+                {
+                    itInsert = it;
+                }
                 it->nStart += nLen;
                 it->nEnd += nLen;
             }
-            bFoundNode = true;
         }
         else if (bFoundNode)
         {
+            itInsert = it;
             break;
         }
         nTFIndex += it->nEnd - it->nStart;
     }
-    assert(bFoundNode && "text node not found - why is it sending hints to us");
+    assert((bFoundNode || rMerged.extents.empty()) && "text node not found - why is it sending hints to us");
     if (!bInserted)
-    {   // must be in a gap at the end of the node
-        rMerged.extents.emplace(it, const_cast<SwTextNode*>(&rNode), nIndex, nIndex + nLen);
+    {   // must be in a gap
+        rMerged.extents.emplace(itInsert, const_cast<SwTextNode*>(&rNode), nIndex, nIndex + nLen);
         text.insert(nTFIndex, rNode.GetText().copy(nIndex, nLen));
     }
     rMerged.mergedText = text.makeStringAndClear();
 }
 
-bool UpdateMergedParaForDelete(MergedPara & rMerged,
+TextFrameIndex UpdateMergedParaForDelete(MergedPara & rMerged,
         SwTextNode const& rNode, sal_Int32 nIndex, sal_Int32 nLen)
 {
     assert(nIndex <= rNode.Len());
@@ -693,10 +698,12 @@ bool UpdateMergedParaForDelete(MergedPara & rMerged,
     sal_Int32 nDeleted(0);
     bool bFoundNode(false);
     auto it = rMerged.extents.begin();
-    for (; it != rMerged.extents.end(); ++it)
+    for (; it != rMerged.extents.end(); )
     {
+        bool bErase(false);
         if (it->pNode == &rNode)
         {
+            bFoundNode = true;
             if (nIndex + nLen <= it->nStart)
             {
                 nLen = 0;
@@ -717,37 +724,41 @@ bool UpdateMergedParaForDelete(MergedPara & rMerged,
                     sal_Int32 const nDeleteHere(nIndex + nLen <= it->nEnd
                             ? nLen
                             : it->nEnd - nIndex);
-                    if (nDeleteHere == it->nEnd - it->nStart)
+                    text.remove(nTFIndex + (nIndex - it->nStart), nDeleteHere);
+                    bErase = nDeleteHere == it->nEnd - it->nStart;
+                    if (bErase)
                     {
                         assert(it->nStart == nIndex);
-                        rMerged.extents.erase(it);
+                        it = rMerged.extents.erase(it);
                     }
                     else
                     {
                         it->nStart -= nDeleted;
                         it->nEnd -= (nDeleted + nDeleteHere);
                     }
-                    text.remove(nTFIndex + (nIndex - it->nStart), nDeleteHere);
                     nDeleted += nDeleteHere;
                     nLen -= nDeleteHere;
                     nIndex += nDeleteHere;
                 }
             }
-            bFoundNode = true;
         }
         else if (bFoundNode)
         {
             break;
         }
-        nTFIndex += it->nEnd - it->nStart;
+        if (!bErase)
+        {
+            nTFIndex += it->nEnd - it->nStart;
+            ++it;
+        }
     }
     assert(bFoundNode && "text node not found - why is it sending hints to us");
-    assert(nIndex <= rNode.Len());
-    --it; // last one in paragraph - must be valid
+    assert(nIndex - nDeleted <= rNode.Len());
     // if there's a remaining deletion, it must be in gap at the end of the node
-    assert(nLen == 0 || it->nEnd <= nIndex);
+// can't do: might be last one in node was erased   assert(nLen == 0 || rMerged.empty() || (it-1)->nEnd <= nIndex);
+// TODO in ^ case, rMerged.listener.StopListening()??? and reset pFirst/pProps ...
     rMerged.mergedText = text.makeStringAndClear();
-    return nDeleted != 0;
+    return TextFrameIndex(nDeleted);
 }
 
 std::pair<SwTextNode*, sal_Int32>

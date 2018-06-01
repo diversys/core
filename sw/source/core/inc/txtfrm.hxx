@@ -398,9 +398,9 @@ public:
     const OUString& GetText() const;
 #if 1
     SwTextNode *GetTextNode()
-        { return static_cast< SwTextNode* >( SwContentFrame::GetNode()); }
+        { return static_cast<SwTextNode*>(SwFrame::GetDep()); }
     const SwTextNode *GetTextNode() const
-        { return static_cast< const SwTextNode* >( SwContentFrame::GetNode()); }
+        { return static_cast<const SwTextNode*>(SwFrame::GetDep()); }
 public:
 #endif
     SwTextNode const* GetTextNodeForParaProps() const;
